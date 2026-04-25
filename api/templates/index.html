@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Public Facebook Reels/Page Downloader</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <main class="container">
+      <h1>Public Facebook Reels/Page Downloader</h1>
+      <p class="notice">
+        Public content only. If Facebook requires login, this tool fails gracefully and will not attempt to bypass access controls.
+      </p>
+
+      <section class="card">
+        <form id="jobForm">
+          <label>
+            Facebook page/reels URL
+            <input name="page_url" id="page_url" type="url" placeholder="https://www.facebook.com/<page>/reels/" required />
+          </label>
+
+          <div class="grid">
+            <label>
+              Max videos
+              <input name="max_videos" id="max_videos" type="number" min="1" max="500" value="50" />
+            </label>
+            <label>
+              Quality (yt-dlp format)
+              <input name="quality" id="quality" type="text" value="best" />
+            </label>
+            <label>
+              Output folder
+              <input name="output" id="output" type="text" value="downloads" />
+            </label>
+            <label>
+              Concurrency
+              <input name="concurrency" id="concurrency" type="number" min="1" max="10" value="2" />
+            </label>
+            <label>
+              Watch interval (seconds)
+              <input name="interval_s" id="interval_s" type="number" min="30" max="86400" value="600" />
+            </label>
+            <label>
+              Google Drive folder ID (optional)
+              <input name="gdrive_folder_id" id="gdrive_folder_id" type="text" placeholder="Folder ID (not name). Leave blank for Drive root." />
+            </label>
+            <label class="inline">
+              <input name="headless" id="headless" type="checkbox" checked />
+              Headless browser
+            </label>
+            <label class="inline">
+              <input name="upload_to_drive" id="upload_to_drive" type="checkbox" />
+              Upload to Google Drive (requires token)
+            </label>
+            <label class="inline">
+              <input name="dry_run" id="dry_run" type="checkbox" />
+              Dry run (no download)
+            </label>
+          </div>
+
+          <div class="actions">
+            <button type="submit" id="startBtn">Fetch & Download</button>
+            <button type="button" id="watchBtn">Start Watch</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="card">
+        <h2>Status</h2>
+        <div id="summary" class="summary">No job started.</div>
+        <div class="two-col">
+          <div>
+            <h3>Discovered URLs</h3>
+            <ul id="urls" class="list"></ul>
+          </div>
+          <div>
+            <h3>Log</h3>
+            <pre id="log" class="log"></pre>
+          </div>
+        </div>
+      </section>
+    </main>
+    <script src="/static/app.js"></script>
+  </body>
+</html>

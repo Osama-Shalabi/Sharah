@@ -1,0 +1,14 @@
+services:
+  fb-public-downloader:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - APP_HOST=0.0.0.0
+      - APP_PORT=8000
+      - APP_STATE_DB=/app/data/app_state.db
+      - DOWNLOADS_ROOT=/app/downloads
+    volumes:
+      - ./downloads:/app/downloads
+      - ./data:/app/data
+
