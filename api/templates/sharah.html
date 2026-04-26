@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>شُعرة</title>
+    <link rel="stylesheet" href="/static/sharah.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <div class="logo" aria-label="شُعرة">شُعرة</div>
+        <div class="tagline">ابحث واكتشف الفيديوهات حسب الموضوع والمنصة</div>
+      </div>
+    </header>
+
+    <main class="page">
+      <section class="toolbar" aria-label="الفلاتر">
+        <div class="toolbarRow">
+          <div class="field searchField">
+            <div class="label">البحث</div>
+            <label class="searchInFilters" aria-label="البحث">
+              <span class="searchIcon" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  />
+                  <path d="M21 21l-4.3-4.3" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                </svg>
+              </span>
+              <input id="q" type="search" placeholder="ابحث عن موضوع أو كلمة مفتاحية..." autocomplete="off" />
+            </label>
+          </div>
+
+          <div class="field">
+            <div class="label">المنصة</div>
+            <button class="select" type="button" id="platformBtn" aria-haspopup="listbox" aria-expanded="false">
+              <span id="platformLabel">كل المنصات</span>
+              <span class="chev" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </span>
+            </button>
+            <div class="menu" id="platformMenu" role="listbox" aria-label="المنصات">
+              <button class="menuItem" type="button" data-platform="all">كل المنصات</button>
+              <button class="menuItem" type="button" data-platform="tiktok">TikTok</button>
+              <button class="menuItem" type="button" data-platform="instagram">Instagram</button>
+              <button class="menuItem" type="button" data-platform="facebook">Facebook</button>
+            </div>
+          </div>
+
+          <button class="btn btnPrimary" id="applyBtn" type="button">
+            <span class="btnIcon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M4 5h16l-6 7v6l-4 2v-8L4 5Z"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linejoin="round"
+                />
+              </svg>
+            </span>
+            تطبيق الفلتر
+          </button>
+
+          <button class="btn btnGhost" id="resetBtn" type="button">
+            <span class="btnIcon" aria-hidden="true">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M20 12a8 8 0 1 1-2.34-5.66"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                />
+                <path d="M20 4v6h-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+              </svg>
+            </span>
+            إعادة تعيين
+          </button>
+
+          <div class="spacer"></div>
+
+          <div class="field small">
+            <button class="select" type="button" id="sortBtn" aria-haspopup="listbox" aria-expanded="false">
+              <span>ترتيب حسب: <span id="sortLabel">الأحدث</span></span>
+              <span class="chev" aria-hidden="true">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                  <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </span>
+            </button>
+            <div class="menu" id="sortMenu" role="listbox" aria-label="الترتيب">
+              <button class="menuItem" type="button" data-sort="new">الأحدث</button>
+              <button class="menuItem" type="button" data-sort="old">الأقدم</button>
+              <button class="menuItem" type="button" data-sort="title">العنوان</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="results" aria-label="النتائج">
+        <div class="meta">
+          <div class="count" id="count">عرض 0 فيديو</div>
+        </div>
+
+        <div class="grid" id="grid" aria-live="polite"></div>
+
+        <nav class="pager" aria-label="الصفحات">
+          <button class="pageBtn" type="button" id="prevPage" aria-label="السابق">‹</button>
+          <div class="pages" id="pages"></div>
+          <button class="pageBtn" type="button" id="nextPage" aria-label="التالي">›</button>
+        </nav>
+      </section>
+    </main>
+
+    <script src="/static/sharah.js"></script>
+  </body>
+</html>

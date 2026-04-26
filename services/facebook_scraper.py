@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import re
 from dataclasses import dataclass
 from typing import Callable, Iterable, List, Optional, Set
 from urllib.parse import urlparse
@@ -24,6 +25,8 @@ class DiscoverResult:
     page_slug: str
     page_url: str
     video_urls: List[str]
+
+_REEL_ID_RE = re.compile(r"(?:https?:\/\/(?:www\.)?facebook\.com)?\/reel\/([0-9]+)", re.IGNORECASE)
 
 
 def _looks_like_login_wall(current_url: str, html: str) -> bool:
@@ -95,6 +98,30 @@ class FacebookReelsScraper:
             page = await context.new_page()
             page.set_default_timeout(self.default_timeout_ms)
 
+            # Capture reel IDs from JSON responses (DOM can be virtualized).
+            discovered: Set[str] = set()
+
+            async def process_response(resp) -> None:
+                try:
+                    ct = (resp.headers or {}).get("content-type", "")
+                    if "graphql" not in resp.url and "application/json" not in ct:
+                        return
+                    txt = await resp.text()
+                except Exception:
+                    return
+                gained = 0
+                for m in _REEL_ID_RE.finditer(txt or ""):
+                    rid = m.group(1)
+                    u = f"https://www.facebook.com/reel/{rid}"
+                    if u in discovered:
+                        continue
+                    discovered.add(u)
+                    gained += 1
+                if gained:
+                    _log("debug", f"Captured {gained} reel URLs from network responses.")
+
+            page.on("response", lambda r: asyncio.create_task(process_response(r)))
+
             await page.goto(page_url, wait_until="domcontentloaded")
             await page.wait_for_timeout(500)
 
@@ -105,7 +132,6 @@ class FacebookReelsScraper:
                     "Facebook requires login or blocked access for this page. Only public content is supported."
                 )
 
-            discovered: Set[str] = set()
             no_new = 0
 
             async def collect_once() -> int:
@@ -118,12 +144,48 @@ class FacebookReelsScraper:
             gained = await collect_once()
             _log("info", f"Found {len(discovered)} candidate video URLs (delta {gained}).")
 
+            async def try_click_more() -> bool:
+                selectors = [
+                    'div[role="button"]:has-text("عرض المزيد")',
+                    'div[role="button"]:has-text("عرض المزيد من النتائج")',
+                    'div[role="button"]:has-text("See more")',
+                    'div[role="button"]:has-text("Show more")',
+                    'a[role="button"]:has-text("عرض المزيد")',
+                    'a[role="button"]:has-text("See more")',
+                ]
+                for sel in selectors:
+                    try:
+                        loc = page.locator(sel).first
+                        if await loc.count() == 0:
+                            continue
+                        await loc.click(timeout=1500)
+                        return True
+                    except Exception:
+                        continue
+                return False
+
             while len(discovered) < max_videos and no_new < max_no_new_scrolls:
-                await page.mouse.wheel(0, 2000)
+                # Facebook pages can be sensitive to scroll mechanics; use multiple strategies.
+                await page.mouse.wheel(0, 2600)
+                await page.keyboard.press("End")
+                await page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
                 await page.wait_for_timeout(int(scroll_pause_s * 1000))
+                try:
+                    await page.wait_for_load_state("networkidle", timeout=2_500)
+                except Exception:
+                    pass
+
                 gained = await collect_once()
                 if gained == 0:
                     no_new += 1
+                    # Sometimes a "more" button is required.
+                    if no_new % 5 == 0:
+                        clicked = await try_click_more()
+                        if clicked:
+                            await page.wait_for_timeout(int(scroll_pause_s * 1000))
+                            gained2 = await collect_once()
+                            if gained2 > 0:
+                                no_new = 0
                     _log("debug", f"No new URLs on this scroll (streak {no_new}/{max_no_new_scrolls}).")
                 else:
                     no_new = 0
@@ -134,4 +196,3 @@ class FacebookReelsScraper:
         urls = list(sorted(discovered))[:max_videos]
         _log("info", f"Discovery complete: {len(urls)} URLs.")
         return DiscoverResult(page_slug=page_slug, page_url=page_url, video_urls=urls)
-

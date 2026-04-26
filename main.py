@@ -13,6 +13,7 @@ from services.drive_uploader import DriveUploader, GoogleDriveAuthError, GoogleD
 from services.facebook_scraper import FacebookReelsScraper
 from services.storage import SQLiteStorage
 from services.utils import ensure_dir, normalize_facebook_url, page_slug_from_url
+from services.reels_indexer import sync_page_reels_to_db
 
 
 logging.basicConfig(
@@ -221,6 +222,23 @@ async def cmd_drive_auth(args: argparse.Namespace) -> int:
     return 0
 
 
+async def cmd_sync_sharah_reels(args: argparse.Namespace) -> int:
+    storage = SQLiteStorage(Path(args.state_db))
+    try:
+        res = await sync_page_reels_to_db(
+            storage=storage,
+            page_url="https://www.facebook.com/shadi.shirri/reels/",
+            max_reels=args.max_reels,
+            headless=args.headless,
+            enrich_metadata=args.enrich_metadata,
+            reset_existing=args.reset,
+        )
+        log.info("Sync result: %s", res)
+        return 0
+    finally:
+        storage.close()
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Public Facebook page/reels downloader (public content only).")
     sub = p.add_subparsers(dest="command", required=True)
@@ -231,6 +249,14 @@ def build_parser() -> argparse.ArgumentParser:
     pf.add_argument("--output", default="downloads")
     pf.add_argument("--headless", action=argparse.BooleanOptionalAction, default=True)
     pf.set_defaults(func=cmd_fetch)
+
+    ps = sub.add_parser("sync-sharah-reels", help="Discover and store reels from https://www.facebook.com/shadi.shirri/reels/ into SQLite.")
+    ps.add_argument("--state-db", default="data/app_state.db")
+    ps.add_argument("--max-reels", type=int, default=500)
+    ps.add_argument("--headless", action=argparse.BooleanOptionalAction, default=True)
+    ps.add_argument("--enrich-metadata", action=argparse.BooleanOptionalAction, default=True)
+    ps.add_argument("--reset", action="store_true", help="Delete existing stored reels for this page before syncing.")
+    ps.set_defaults(func=cmd_sync_sharah_reels)
 
     pfd = sub.add_parser("fetch-and-download", help="Discover URLs, then download them with yt-dlp.")
     pfd.add_argument("page_url")
