@@ -1,7 +1,7 @@
-let CARDS = [
+const DEMO_CARDS = [
   {
     id: "1",
-    platform: "instagram",
+    platform: "facebook",
     duration: "00:25",
     title: "مشاهد الغروب",
     category: "سفر",
@@ -10,7 +10,7 @@ let CARDS = [
   },
   {
     id: "2",
-    platform: "tiktok",
+    platform: "facebook",
     duration: "00:18",
     title: "تحدي الرقص 2024",
     category: "لياقة",
@@ -28,7 +28,7 @@ let CARDS = [
   },
   {
     id: "4",
-    platform: "instagram",
+    platform: "facebook",
     duration: "00:30",
     title: "أفكار فطور صحي",
     category: "طعام",
@@ -37,7 +37,7 @@ let CARDS = [
   },
   {
     id: "5",
-    platform: "tiktok",
+    platform: "facebook",
     duration: "00:15",
     title: "استكشاف الجبال",
     category: "سفر",
@@ -46,7 +46,7 @@ let CARDS = [
   },
   {
     id: "6",
-    platform: "tiktok",
+    platform: "facebook",
     duration: "00:15",
     title: "ركوب الأمواج",
     category: "رياضة",
@@ -64,7 +64,7 @@ let CARDS = [
   },
   {
     id: "8",
-    platform: "instagram",
+    platform: "facebook",
     duration: "00:28",
     title: "عطلة في المدينة",
     category: "سفر",
@@ -73,7 +73,7 @@ let CARDS = [
   },
   {
     id: "9",
-    platform: "tiktok",
+    platform: "facebook",
     duration: "00:18",
     title: "جولة في إعداد تقني",
     category: "تقنية",
@@ -91,7 +91,12 @@ let CARDS = [
   },
 ];
 
-const PAGE_SIZE = 10;
+const DESKTOP_PAGE_SIZE = 20;
+const MOBILE_PAGE_SIZE = 10;
+const MOBILE_PAGE_QUERY = "(max-width: 720px)";
+const MAX_REELS_TO_LOAD = 10000;
+
+let CARDS = [...DEMO_CARDS];
 
 const state = {
   draft: { q: "", platform: "all", sort: "new" },
@@ -109,6 +114,10 @@ function clamp(n, min, max) {
 
 function normalize(s) {
   return (s || "").toString().trim().toLowerCase();
+}
+
+function pageSize() {
+  return window.matchMedia(MOBILE_PAGE_QUERY).matches ? MOBILE_PAGE_SIZE : DESKTOP_PAGE_SIZE;
 }
 
 function formatArabicDate(iso) {
@@ -136,14 +145,15 @@ function iconSvg(platform) {
   return `
     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path
-        d="M14.5 9.5h2V7.1c0-1-.8-1.8-1.8-1.8h-2.2c-1.4 0-2.5 1.1-2.5 2.5V9.5H7.5V12H10v6.8h2.8V12h2.2l.5-2.5H12.8V8.2c0-.4.3-.7.7-.7Z"
-        fill="#111827"
+        d="M15.35 8.05h-1.65c-.48 0-.8.34-.8.86v1.45h2.32l-.35 2.38H12.9V19h-2.58v-6.26H8.35v-2.38h1.97V8.7c0-2.05 1.22-3.2 3.1-3.2.9 0 1.66.07 1.93.1v2.45Z"
+        fill="#1877F2"
       />
     </svg>`;
 }
 
 function matchesFilters(card, filters) {
   if (filters.platform !== "all" && card.platform !== filters.platform) return false;
+  if (card.searchRanked) return true;
   const q = normalize(filters.q);
   if (!q) return true;
   const hay = normalize(`${card.title} ${card.category}`);
@@ -166,6 +176,7 @@ function sortCards(cards, sortKey) {
 
 function filteredCards() {
   const cards = CARDS.filter((c) => matchesFilters(c, state.applied));
+  if (state.applied.q.trim() && cards.some((c) => c.searchRanked)) return cards;
   return sortCards(cards, state.applied.sort);
 }
 
@@ -185,10 +196,11 @@ function renderGrid() {
   const cards = filteredCards();
   countEl.textContent = `عرض ${cards.length} فيديو`;
 
-  const totalPages = Math.max(1, Math.ceil(cards.length / PAGE_SIZE));
+  const size = pageSize();
+  const totalPages = Math.max(1, Math.ceil(cards.length / size));
   state.page = clamp(state.page, 1, totalPages);
-  const start = (state.page - 1) * PAGE_SIZE;
-  const pageItems = cards.slice(start, start + PAGE_SIZE);
+  const start = (state.page - 1) * size;
+  const pageItems = cards.slice(start, start + size);
 
   grid.innerHTML = "";
   for (const c of pageItems) {
@@ -222,10 +234,6 @@ function renderGrid() {
     info.className = "info";
     info.innerHTML = `
       <div class="title">${escapeHtml(c.title)}</div>
-      <div class="row">
-        <span class="pill">${escapeHtml(c.category)}</span>
-        <span class="date">${escapeHtml(formatArabicDate(c.date))}</span>
-      </div>
     `;
 
     a.appendChild(thumb);
@@ -310,19 +318,23 @@ function setupMenu(buttonId, menuId, onSelect) {
   });
 }
 
-function applyFilters() {
+async function applyFilters() {
   state.applied = { ...state.draft };
   state.page = 1;
+  if (state.applied.q.trim()) {
+    await loadHybridSearchResults(state.applied.q);
+  }
   renderGrid();
 }
 
-function resetFilters() {
+async function resetFilters() {
   state.draft = { q: "", platform: "all", sort: "new" };
   state.applied = { q: "", platform: "all", sort: "new" };
   state.page = 1;
   $("q").value = "";
   $("platformLabel").textContent = "كل المنصات";
   $("sortLabel").textContent = "الأحدث";
+  await loadReels();
   renderGrid();
 }
 
@@ -365,44 +377,64 @@ function init() {
     renderGrid();
   });
 
+  window.matchMedia(MOBILE_PAGE_QUERY).addEventListener("change", () => {
+    state.page = 1;
+    renderGrid();
+  });
+
   applyFilters();
 }
 
 init();
 
-async function loadRealFacebookReelExample() {
+function reelToCard(r, idx, { searchRanked = false } = {}) {
+  const title = r.title || "";
+  const category = r.topic || "عام";
+  const date = "";
+  const thumb = r.thumbnail
+    ? `linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.35)), url('${`${r.thumbnail}`.replaceAll("'", "%27")}')`
+    : "radial-gradient(420px 260px at 35% 35%, rgba(122, 90, 59, 0.22), rgba(122, 90, 59, 0) 62%), linear-gradient(135deg, #0b1320, #6a4a30 55%, #efe7de)";
+
+  return {
+    id: r.id || `${idx + 1}`,
+    platform: "facebook",
+    duration: r.duration || "",
+    title,
+    category,
+    date,
+    thumb,
+    facebookReelUrl: r.facebookReelUrl,
+    searchRanked,
+  };
+}
+
+async function loadReels() {
   try {
-    const resp = await fetch("/api/sharah/reels");
+    const resp = await fetch(`/api/sharah/reels?limit=${MAX_REELS_TO_LOAD}&_ts=${Date.now()}`, { cache: "no-store" });
     if (!resp.ok) throw new Error(`status=${resp.status}`);
     const data = await resp.json();
     const reels = Array.isArray(data) ? data : [];
     if (reels.length === 0) throw new Error("empty");
 
-    CARDS = reels
-      .filter((r) => r?.facebookReelUrl)
-      .map((r, idx) => {
-        const title = ""; // keep title stored in DB only (hidden in UI for now)
-        const category = r.topic || "عام";
-        const date = r.uploadDate || "";
-        const thumb = r.thumbnail
-          ? `linear-gradient(180deg, rgba(0,0,0,0.05), rgba(0,0,0,0.35)), url('${`${r.thumbnail}`.replaceAll("'", "%27")}')`
-          : "radial-gradient(420px 260px at 35% 35%, rgba(122, 90, 59, 0.22), rgba(122, 90, 59, 0) 62%), linear-gradient(135deg, #0b1320, #6a4a30 55%, #efe7de)";
-
-        return {
-          id: r.id || `${idx + 1}`,
-          platform: "facebook",
-          duration: r.duration || "",
-          title,
-          category,
-          date,
-          thumb,
-          facebookReelUrl: r.facebookReelUrl,
-        };
-      });
+    const fetchedCards = reels.filter((r) => r?.facebookReelUrl).map((r, idx) => reelToCard(r, idx));
+    CARDS = fetchedCards;
     renderGrid();
   } catch {
     console.warn("Could not fetch Facebook reels");
   }
 }
 
-loadRealFacebookReelExample();
+async function loadHybridSearchResults(query) {
+  try {
+    const url = `/api/sharah/reels/search?q=${encodeURIComponent(query)}&limit=${MAX_REELS_TO_LOAD}&_ts=${Date.now()}`;
+    const resp = await fetch(url, { cache: "no-store" });
+    if (!resp.ok) throw new Error(`status=${resp.status}`);
+    const data = await resp.json();
+    const reels = Array.isArray(data) ? data : [];
+    CARDS = reels.filter((r) => r?.facebookReelUrl).map((r, idx) => reelToCard(r, idx, { searchRanked: true }));
+  } catch {
+    console.warn("Could not fetch hybrid search results");
+  }
+}
+
+loadReels();

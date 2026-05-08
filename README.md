@@ -1,158 +1,58 @@
-## Public Facebook Reels/Page Downloader (Playwright + yt-dlp)
+# شُعرة (Sharrah)
 
-Production-oriented Python app that:
+واجهة عربية RTL لعرض ريلز فيسبوك كـ “بطاقات” (مع صورة مصغّرة ورابط خارجي).
 
-1. Accepts a **public** Facebook page/reels URL (example: `https://www.facebook.com/shadi.shirri/reels/`)
-2. Uses **Playwright** to load/scroll the page and collect reel/video post URLs
-3. Uses **yt-dlp** (+ **FFmpeg** when needed) to download each discovered URL
-4. Prevents duplicates using a local **SQLite** database
-5. Provides both a **CLI** and a small **web UI** (FastAPI)
+المشروع الآن يعتمد فقط على **Facebook Graph API** لتعبئة قاعدة البيانات محليًا (SQLite)، ولا يحتوي على أي **سكرابر** أو **داونلودر**.
 
-### Compliance / Safety
-
-- Public content only.
-- No login flows, no cookie/session theft, no captcha bypass, no private content access, no paywall/access-control bypass.
-- If Facebook requires login or blocks access, the app fails gracefully with a clear error.
-- You are responsible for complying with Facebook’s terms and applicable laws.
-
-## Project structure
-
-```
-.
-├─ api/
-│  ├─ app.py
-│  ├─ models.py
-│  ├─ templates/index.html
-│  └─ static/{app.js,styles.css}
-├─ services/
-│  ├─ facebook_scraper.py
-│  ├─ downloader.py
-│  ├─ storage.py
-│  ├─ jobs.py
-│  └─ utils.py
-├─ tests/
-├─ main.py
-├─ requirements.txt
-├─ Dockerfile
-├─ docker-compose.yml
-└─ .env.example
-```
-
-## Setup (Windows / local)
-
-Requirements:
-
-- Python 3.11+
-- FFmpeg installed and on `PATH` (Windows: install via `winget install Gyan.FFmpeg`)
-
-Install:
+## التشغيل
 
 ```bash
-python -m venv .venv
-.venv\\Scripts\\activate
+python3 -m venv .venv
+source .venv/bin/activate
 pip install -r requirements.txt
-python -m playwright install chromium
+uvicorn api.app:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-Run the web app:
+من نفس الجهاز افتح: `http://127.0.0.1:8000/sharah`
+
+من الهاتف على نفس الشبكة افتح: `http://<VM_IP>:8000/sharah`
+
+يمكنك أيضًا تشغيل نفس الأمر عبر:
 
 ```bash
-uvicorn api.app:app --reload
+./quickstart.sh
 ```
 
-Open `http://127.0.0.1:8000/`.
+## مصدر الريلز (Excel أو قاعدة البيانات)
 
-### Environment variables
+افتراضيًا `SHARAH_REELS_SOURCE=auto` وسيتم استخدام ملف `shadi_shirri_reels.xlsx` إن كان موجودًا، وإلا سيتم القراءة من SQLite.
 
-Copy `.env.example` to `.env` to customize:
+متغيرات البيئة:
 
-- `APP_STATE_DB` (default: `data/app_state.db`)
-- `DOWNLOADS_ROOT` (default: `downloads`)
+- `SHARAH_REELS_SOURCE`: `auto` أو `excel` أو `db`
+- `SHARAH_REELS_XLSX`: مسار ملف الإكسل (الافتراضي: `shadi_shirri_reels.xlsx`)
 
-## Setup (Docker)
+## إعدادات Graph API
 
-```bash
-docker compose up --build
-```
+انسخ `.env.example` إلى `.env` ثم اضبط:
 
-Open `http://127.0.0.1:8000/`.
-
-## CLI usage
-
-Discover URLs (does not download):
-
-```bash
-python main.py fetch "https://www.facebook.com/shadi.shirri/reels/" --max-videos 50 --output ./downloads
-```
-
-Fetch + download:
-
-```bash
-python main.py fetch-and-download "https://www.facebook.com/shadi.shirri/reels/" --max-videos 50 --output ./downloads --quality best --concurrency 2
-```
-
-Watch mode (polls for new reels and downloads only new ones):
-
-```bash
-python main.py watch "https://www.facebook.com/shadi.shirri/reels/" --interval 600 --max-videos 50 --output ./downloads
-```
-
-## Upload to Google Drive (optional)
-
-This project can upload the downloaded video files to Google Drive using the Drive API (OAuth “installed app” flow).
-
-1) Create Google OAuth credentials (Desktop app) and download the client secret JSON.
-
-2) Set env vars (or pass CLI flags):
-
-- `GDRIVE_CLIENT_SECRET=path/to/client_secret.json`
-- `GDRIVE_TOKEN_PATH=data/gdrive_token.json` (default)
-- Optional default destination folder: `GDRIVE_FOLDER_ID=...`
-
-3) Authenticate once (creates the token JSON):
-
-```bash
-python3 main.py drive-auth
-```
-
-4) Download + upload:
-
-```bash
-python3 main.py fetch-and-download "https://www.facebook.com/<page>/reels/" --upload-to-drive --gdrive-folder-id "<FOLDER_ID>"
-```
-
-Notes:
-- For Docker/server runs, generate the token on your machine first, then mount the `data/` folder into the container (the default `docker-compose.yml` already mounts `./data:/app/data`).
-- If you can’t open a browser on the machine doing auth, use console auth: `python3 main.py drive-auth --gdrive-oauth-console`.
+- `FB_PAGE_ID`
+- `FB_PAGE_ACCESS_TOKEN`
+- `FB_GRAPH_API_VERSION` (اختياري)
 
 ## API
 
-- `POST /fetch-links`
-- `POST /download`
-- `POST /fetch-and-download`
-- `POST /watch`
-- `GET /jobs/{job_id}`
-- `GET /health`
+- `GET /api/sharah/reels` قائمة ريلز للعرض مع العنوان إن كان موجودًا في الإكسل/قاعدة البيانات
+- `GET /api/sharah/reels/search?q=...` بحث هجين: كلمات مفتاحية + تشابه عناوين محفوظة كـ embeddings في SQLite
+- `POST /api/sharah/reels/index-embeddings` إنشاء/تحديث embeddings لعناوين الريلز الموجودة
+- `POST /api/sharah/reels/sync-graph` مزامنة/تحديث قاعدة البيانات من Graph API
+- `GET /api/sharah/reels/from-db` عرض بيانات قاعدة البيانات (يتضمن العنوان)
 
-## Outputs
+## تحديث عناوين الريلز
 
-For a page like `.../shadi.shirri/reels/`:
+بعد ملء عمود `reel_title` في ملف الإكسل، يمكن فهرسة العناوين للبحث:
 
-- `downloads/shadi_shirri/discovered_urls.json`
-- `downloads/shadi_shirri/metadata.json`
-- downloaded video files in the same folder
-- persistent state DB: `data/app_state.db`
-
-## How it works
-
-1. Playwright loads the reels/page URL, scrolls, and extracts candidate reel/video links from `<a href="...">`.
-2. Discovered URLs are de-duplicated and persisted per job.
-3. yt-dlp downloads each URL (best quality by default) and writes metadata.
-4. The SQLite DB prevents re-downloading the same canonical URL.
-5. Watch mode repeats discovery on an interval and only downloads URLs not yet present in `data/app_state.db`.
-
-## Known limitations
-
-- Facebook markup changes frequently; discovery can break.
-- Some pages or regions require login even for public content; in that case, the tool will fail with a clear error.
-- Date filtering is best-effort and depends on `upload_date` being available via yt-dlp extraction.
+```bash
+python3 fb_reel_title_browser.py --update-xlsx --limit 20
+curl -X POST http://127.0.0.1:8000/api/sharah/reels/index-embeddings
+```

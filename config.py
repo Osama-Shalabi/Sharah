@@ -12,13 +12,13 @@ class Settings(BaseSettings):
     app_host: str = "0.0.0.0"
     app_port: int = 8000
     app_state_db: Path = Path("data/app_state.db")
-    downloads_root: Path = Path("downloads")
+    sharah_reels_xlsx: Path = Path("shadi_shirri_reels (Copy).xlsx")
+    sharah_reels_source: str = "auto"  # auto | excel | db
 
-    # Optional: Google Drive uploads (OAuth "installed app" flow)
-    gdrive_client_secret: Path = Path("client_secret.json")
-    gdrive_token_path: Path = Path("data/gdrive_token.json")
-    gdrive_folder_id: str = ""
-    gdrive_oauth_console: bool = False
+    # Optional: Facebook Graph API (Page reels/videos indexing)
+    fb_graph_api_version: str = "v20.0"
+    fb_page_id: str = ""
+    fb_page_access_token: str = ""
 
 
 @lru_cache

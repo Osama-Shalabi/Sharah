@@ -2,9 +2,17 @@
 .env.*
 !.env.example
 
-.data/
+data/
+!data/.gitkeep
 downloads/
+run/
+fb_video_watcher/
 *.part
+*.log
+
+__pycache__/
+.pytest_cache/
+.venv/
 
 # OAuth / secrets (do not commit)
 client_secret_*.json

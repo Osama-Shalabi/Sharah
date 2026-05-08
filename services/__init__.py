@@ -1,2 +1,1 @@
-"""Service layer for scraping, downloading, storage, and background jobs."""
-
+"""Service layer for Sharrah (Facebook Graph sync + storage)."""
